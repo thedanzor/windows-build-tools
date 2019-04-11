@@ -1,23 +1,39 @@
 [CmdletBinding()]
 Param(
-    [Parameter(Mandatory=$True)]
-    [string]$pythonPath,
-    [Parameter(Mandatory=$True)]
-    [string]$pythonExePath,
-    [switch]$AddPythonToPath
+  [string]$pythonPath,
+  [string]$pythonExePath,
+  [string]$VisualStudioVersion,
+  [switch]$ConfigurePython,
+  [switch]$ConfigureBuildTools
 )
 
-# Setting the MSVS Version
-# We need to set it to 2015 for both Visual Studio 2015 and Visual Studio 2017 - 
-# at least as long as the underlying gyp tools don't understand 2017
-[Environment]::SetEnvironmentVariable("GYP_MSVS_VERSION", "2015", "User")
-npm config set msvs_version 2015
+function configureBuildTools() {
+  if ($VisualStudioVersion -eq "2015") {
+    # Setting MSVS version is needed only for the VS2015 Build Tools, not for other editions
+    [Environment]::SetEnvironmentVariable("GYP_MSVS_VERSION", "2015", "User")
+    npm config set msvs_version 2015
+  } else {
+    # Rely on node-gyp/gyp autodetection
+    npm config delete msvs_version
+    npm config delete msvs_version --global
+    [Environment]::SetEnvironmentVariable("GYP_MSVS_VERSION", $null, "User")
+    [Environment]::SetEnvironmentVariable("GYP_MSVS_VERSION", $null, "Machine")
+  }
+}
 
-# Setting python path
-npm config set python $pythonExePath
+function configurePython() {
+  # Setting python path
+  npm config set python $pythonExePath
 
-# Add Python to path, if that's inteded by the User
-if ($AddPythonToPath.IsPresent) {
-    [System.Environment]::SetEnvironmentVariable("Path", "$pythonPath;$env:Path", "User")
-    [System.Environment]::SetEnvironmentVariable("Path", "$pythonPath;$env:Path", "Process")
+  # Add Python to path
+  [System.Environment]::SetEnvironmentVariable("Path", "$pythonPath;$env:Path", "User")
+  [System.Environment]::SetEnvironmentVariable("Path", "$pythonPath;$env:Path", "Process")
+}
+
+if ($ConfigureBuildTools.IsPresent) {
+  configureBuildTools;
+}
+
+if ($ConfigurePython.IsPresent) {
+  configurePython;
 }
